@@ -32,7 +32,7 @@ RUN wget https://raw.githubusercontent.com/GoogleCloudPlatform/vertex-ai-samples
 
 
 # Install libraries.
-RUN pip install autogluon==1.0.0
+RUN pip install autogluon.tabular==1.0.0
 
 COPY model_oss/autogluon /autogluon
 WORKDIR /autogluon
