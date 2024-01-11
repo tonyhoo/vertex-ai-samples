@@ -27,10 +27,11 @@ class EvaluationConfig(BaseConfig):
 
 
 class TrainingConfig(BaseConfig):
-    def __init__(self, time_limit, presets, hyperparameters):
+    def __init__(self, time_limit, presets, hyperparameters, model_save_path):
         self.time_limit = time_limit
         self.hyperparameters = hyperparameters
         self.presets = presets
+        self.model_save_path = model_save_path  # Add the model_save_path attribute
 
 
 def parse_args():
@@ -41,25 +42,27 @@ def parse_args():
     parser.add_argument("--problem_type", type=str, choices=["binary", "multiclass", "regression", "quantile"],
                         default=None, help="Problem type.")
     parser.add_argument("--eval_metric", type=str, default=None, help="Evaluation metric to use.")
-    # Add arguments for TrainingConfig if needed
+    # Add arguments for TrainingConfig
     parser.add_argument("--time_limit", type=int, default=None, help="Time limit in seconds for training.")
     parser.add_argument("--presets", type=str, default="medium_quality", help="Presets used for training ")
     parser.add_argument("--hyperparameters", type=json.loads, default=None,
                         help="Hyperparameter dictionary in JSON format.")
+    parser.add_argument("--model_save_path", type=str, default=None, help="Path to save the trained model.")  # New argument for model save path
     args = parser.parse_args()
 
     data_config = DataConfig(train_data_path=args.train_data_path)
     problem_config = ProblemConfig(label=args.label, problem_type=args.problem_type)
     eval_config = EvaluationConfig(eval_metric=args.eval_metric)
     training_config = TrainingConfig(time_limit=args.time_limit, presets=args.presets,
-                                     hyperparameters=args.hyperparameters)
+                                     hyperparameters=args.hyperparameters, model_save_path=args.model_save_path)  # Include model_save_path in TrainingConfig
 
     return data_config, problem_config, eval_config, training_config
 
 
 def main():
     """
-    To be run in the docker container with sample usage: docker run {image_name} --train_data_path=https://raw.githubusercontent.com/mli/ag-docs/main/knot_theory/train.csv --label=signature
+    To be run in the docker container with sample usage:
+    docker run {image_name} --train_data_path=https://autogluon.s3.amazonaws.com/datasets/Inc/train.csv --label=class --time_limit=60 --model_save_path={local_path}
     Returns:
 
     """
@@ -69,10 +72,12 @@ def main():
     data = pd.read_csv(data_config.train_data_path)
 
     # Create a TabularPredictor
-    predictor = TabularPredictor(**problem_config.to_dict(), **eval_config.to_dict())
+    predictor = TabularPredictor(label=problem_config.label, eval_metric=eval_config.eval_metric,
+                                 path=training_config.model_save_path)  # Use the model_save_path for the output directory
 
     # Fit the model
-    predictor.fit(data, **training_config.to_dict())
+    predictor.fit(data, presets=training_config.presets, time_limit=training_config.time_limit,
+                  hyperparameters=training_config.hyperparameters)
 
 
 if __name__ == "__main__":
